@@ -39,12 +39,15 @@ public class User
 	@Column(name = "enabled")
 	private Boolean enabled;
 
-	@ManyToMany(cascade = {CascadeType.ALL}, fetch = FetchType.EAGER)
-	@JoinTable(name = "users_roles", 
-	joinColumns = { @JoinColumn(name = "user_id") },
-	inverseJoinColumns = { @JoinColumn(name = "role_id") })
+	@ManyToMany(cascade =
+	{ CascadeType.ALL }, fetch = FetchType.EAGER)
+	@JoinTable(name = "users_roles", joinColumns =
+	{ @JoinColumn(name = "user_id") }, inverseJoinColumns =
+	{ @JoinColumn(name = "role_id") })
 	@JsonIgnoreProperties("users")
 	private Set<Role> roles;
+
+	private String token;
 
 	public User()
 	{
@@ -108,7 +111,17 @@ public class User
 		this.roles = roles;
 	}
 
-//	
+	public String getToken()
+	{
+		return token;
+	}
+
+	public void setToken(String token)
+	{
+		this.token = token;
+	}
+
+//
 
 	public void addRole(Role role)
 	{
@@ -116,7 +129,7 @@ public class User
 		{
 			this.roles = new HashSet<Role>();
 		}
-				
+
 		this.roles.add(role);
 	}
 

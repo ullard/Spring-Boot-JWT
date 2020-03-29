@@ -6,9 +6,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+
+import com.demo.jwt.model.User;
+import com.demo.jwt.repository.UserRepository;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -21,10 +25,13 @@ public class JwtTokenUtil implements Serializable
 
 	private static final long serialVersionUID = -2550185165626007488L;
 
-	public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
+	public static final long JWT_TOKEN_VALIDITY = 30 * 60; // valid for half an hour
 
 	@Value("${jwt.secret}")
 	private String secret;
+
+	@Autowired
+	private UserRepository userRepository;
 
 	public String getUsernameFromToken(String token)
 	{
@@ -50,44 +57,41 @@ public class JwtTokenUtil implements Serializable
 
 	private Claims getAllClaimsFromToken(String token)
 	{
+		// parseClaimJws validates the token (UnsupportedJwtException, MalformedJwtException, SignatureException, ExpiredJwtException, IllegalArgumentException)
 		return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
 	}
 
-	private Boolean isTokenExpired(String token)
-	{
-		final Date expiration = getExpirationDateFromToken(token);
-
-		return expiration.before(new Date());
-	}
-
-	private Boolean ignoreTokenExpiration(String token)
-	{
-		// here you specify tokens, for that the expiration is ignored
-		return false;
-	}
-
-	public String generateToken(UserDetails userDetails)
+	public String generateToken(User user)
 	{
 		Map<String, Object> claims = new HashMap<>();
 
-		return doGenerateToken(claims, userDetails.getUsername());
+		return doGenerateToken(claims, user);
 	}
 
-	private String doGenerateToken(Map<String, Object> claims, String subject)
+	private String doGenerateToken(Map<String, Object> claims, User user)
 	{
+		String token = Jwts.builder().setClaims(claims).setSubject(user.getUsername()).setIssuedAt(new Date(System.currentTimeMillis())).setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY * 1000)).signWith(SignatureAlgorithm.HS512, secret).compact();
 
-		return Jwts.builder().setClaims(claims).setSubject(subject).setIssuedAt(new Date(System.currentTimeMillis())).setExpiration(new Date(System.currentTimeMillis() + JWT_TOKEN_VALIDITY * 1000)).signWith(SignatureAlgorithm.HS512, secret).compact();
-	}
+		saveTokenForUser(token, user);
 
-	public Boolean canTokenBeRefreshed(String token)
-	{
-		return (!isTokenExpired(token) || ignoreTokenExpiration(token));
+		return token;
 	}
 
 	public Boolean validateToken(String token, UserDetails userDetails)
 	{
-		final String username = getUsernameFromToken(token);
+		if (!(userRepository.findByUsername(userDetails.getUsername()).getToken() == null) && (userRepository.findByUsername(userDetails.getUsername()).getToken().equals(token)))
+		{
+			return true;
+		}
 
-		return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+		return false;
 	}
+
+	public void saveTokenForUser(String token, User user)
+	{
+		user.setToken(token);
+
+		userRepository.save(user);
+	}
+
 }

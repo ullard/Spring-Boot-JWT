@@ -3,6 +3,7 @@ package com.demo.jwt.service;
 import java.util.ArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -32,15 +33,28 @@ public class UserServiceImpl implements UserService
 	}
 
 	@Override
+	public User findByUsername(String username) throws UsernameNotFoundException
+	{
+		User user = userRepository.findByUsername(username);
+
+		if (user == null)
+		{
+			throw new UsernameNotFoundException("There is no user with the given username: " + username);
+		}
+
+		return user;
+	}
+
+	@Override
 	public User registerNewUserAccount(UserDtoIn accountDto) throws Exception
 	{
 		User userCheck = userRepository.findByUsername(accountDto.getUsername());
-		
+
 		if (userCheck != null)
 		{
 			throw new Exception("A user already exists with the given username.");
 		}
-		
+
 		User user = new User();
 
 		ArrayList<String> roles = new ArrayList<>();
@@ -60,7 +74,7 @@ public class UserServiceImpl implements UserService
 			{
 				user.addRole(role);
 			} else
-			{				
+			{
 				user.addRole(new Role(roles.get(i)));
 			}
 		}
